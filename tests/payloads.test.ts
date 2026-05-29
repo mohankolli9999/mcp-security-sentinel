@@ -14,6 +14,8 @@ describe('PAYLOADS', () => {
       expect(p.severity, `${p.id} missing severity`).toMatch(/^(critical|high|medium|low)$/);
       expect(p.owaspRefs, `${p.id} missing owaspRefs`).toBeInstanceOf(Array);
       expect(p.owaspRefs.length, `${p.id} owaspRefs empty`).toBeGreaterThan(0);
+      expect(p.description, `${p.id} missing description`).toBeTruthy();
+      expect(p.priority, `${p.id} missing priority`).toBeTruthy();
       expect(p.slowmistRef, `${p.id} missing slowmistRef`).toBeTruthy();
       expect(p.testSurface, `${p.id} missing testSurface`).toBeTruthy();
       expect(p.payload, `${p.id} missing payload string`).toBeTruthy();
