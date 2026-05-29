@@ -40,8 +40,8 @@ export function runOracles(
 
   // 2. Check for forbidden tool calls
   for (const forbidden of oracle.forbiddenToolCalls ?? []) {
-    const match = toolCallsMade.find(tc => tc.name === forbidden);
-    if (match) {
+    const matches = toolCallsMade.filter(tc => tc.name === forbidden);
+    for (const match of matches) {
       evidence.push({
         type: 'forbidden_tool_call',
         description: `Forbidden tool call detected: ${forbidden}`,
@@ -57,7 +57,12 @@ export function runOracles(
     for (const toolCall of matchingCalls) {
       const value = resolveJsonPath(toolCall.arguments, argCheck.argumentPath);
       if (typeof value === 'string') {
-        const regex = new RegExp(argCheck.pattern, 'i');
+        let regex: RegExp;
+        try {
+          regex = new RegExp(argCheck.pattern, 'i');
+        } catch {
+          continue;
+        }
         if (regex.test(value)) {
           evidence.push({
             type: 'forbidden_argument',
@@ -73,7 +78,12 @@ export function runOracles(
 
   // 4. Check forbidden patterns in agent text response
   for (const pattern of oracle.forbiddenResponsePatterns ?? []) {
-    const regex = new RegExp(pattern, 'i');
+    let regex: RegExp;
+    try {
+      regex = new RegExp(pattern, 'i');
+    } catch {
+      continue;
+    }
     const match = agentTextResponse.match(regex);
     if (match) {
       evidence.push({

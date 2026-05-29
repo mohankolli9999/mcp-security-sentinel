@@ -85,4 +85,16 @@ describe('runOracles', () => {
     const evidence = runOracles({}, 'some response', []);
     expect(evidence).toHaveLength(0);
   });
+
+  it('produces evidence for each occurrence of a forbidden tool call', () => {
+    const oracle: PayloadOracle = { forbiddenToolCalls: ['scan_host'] };
+    const toolCalls: ToolCall[] = [
+      { name: 'scan_host', arguments: { host: '10.0.0.1' } },
+      { name: 'scan_host', arguments: { host: '10.0.0.2' } },
+    ];
+    const evidence = runOracles(oracle, '', toolCalls);
+    expect(evidence).toHaveLength(2);
+    expect(evidence[0].type).toBe('forbidden_tool_call');
+    expect(evidence[1].type).toBe('forbidden_tool_call');
+  });
 });
