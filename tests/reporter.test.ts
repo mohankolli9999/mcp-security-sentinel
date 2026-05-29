@@ -95,6 +95,23 @@ describe('reporter', () => {
     expect(output).toContain('No manipulation detected');
   });
 
+  it('printReport outputs higher-risk finding before lower-risk finding', async () => {
+    const { printReport } = await import('../src/reporter.js');
+    const lowFinding: ScanFinding = {
+      ...mockFinding,
+      payloadId: 'INJ-LOW',
+      riskScore: 3.0,
+      severity: 'low',
+    };
+    // Pass high-risk finding second (wrong order) — reporter should sort it first
+    const result = { ...mockResult, findings: [lowFinding, mockFinding] };
+    printReport(result);
+    const output = consoleOutput.join('\n');
+    const posHigh = output.indexOf('INJ-001');
+    const posLow = output.indexOf('INJ-LOW');
+    expect(posHigh).toBeLessThan(posLow);
+  });
+
   it('writeJsonReport writes valid JSON to file', async () => {
     const { writeJsonReport } = await import('../src/reporter.js');
     const tmpPath = '/tmp/sentinel-test-report.json';

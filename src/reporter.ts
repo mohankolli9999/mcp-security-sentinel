@@ -67,12 +67,13 @@ export function printReport(result: ScanResult): void {
     console.log(chalk.green('\n✓ No manipulation detected across all payloads.\n'));
   } else {
     console.log(`\n${chalk.red(`${result.findings.length} finding(s) detected`)}\n`);
-    for (const finding of result.findings) {
+    for (const finding of result.findings.slice().sort((a, b) => b.riskScore - a.riskScore)) {
       console.log(formatFinding(finding));
       console.log(divider);
     }
   }
 
+  // result.summary is omitted from terminal output — counts are printed individually above
   console.log(chalk.bold('\nSummary'));
   console.log(`  Payloads tested: ${result.totalPayloadsTested}`);
   console.log(`  Findings:        ${result.totalFindings}`);
