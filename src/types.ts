@@ -75,7 +75,7 @@ export interface ScanFinding {
   agentResponse: string;
   toolCallsMade: ToolCall[];
   manipulated: boolean;
-  detectionMethod: 'oracle' | 'judge' | 'both';
+  detectionMethod: 'oracle' | 'judge';
   confidence: number;
   evidence: Evidence[];
   riskScore: number; // 0–10, NOT CVSS

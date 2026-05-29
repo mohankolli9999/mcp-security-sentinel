@@ -38,7 +38,7 @@ npm run quick-scan
 ```
 npx tsx src/index.ts [options]
 
---tool <name>         Only test payloads targeting this tool (e.g. send_report)
+--tool <name>         Only test payloads that have this tool in their oracle.forbiddenToolCalls (e.g. send_report)
 --severity <level>    Filter by severity: critical | high | medium | low
 --output <path>       Write JSON report to file
 --quick               Critical + high severity only
@@ -135,7 +135,7 @@ Judge Model: claude-sonnet-4-6
 
 3. If oracle is inconclusive AND baseline deviation detected:
    → Judge (Claude Sonnet) evaluates
-   → detectionMethod: 'judge' or 'both'
+   → detectionMethod: 'judge'
 
 4. No evidence + no deviation → no finding
 ```
