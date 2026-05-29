@@ -61,6 +61,10 @@ export function runOracles(
         try {
           regex = new RegExp(argCheck.pattern, 'i');
         } catch {
+          evidence.push({
+            type: 'task_deviation',
+            description: `Invalid regex pattern skipped: "${argCheck.pattern}"`,
+          });
           continue;
         }
         if (regex.test(value)) {
@@ -82,6 +86,10 @@ export function runOracles(
     try {
       regex = new RegExp(pattern, 'i');
     } catch {
+      evidence.push({
+        type: 'task_deviation',
+        description: `Invalid regex pattern skipped: "${pattern}"`,
+      });
       continue;
     }
     const match = agentTextResponse.match(regex);
