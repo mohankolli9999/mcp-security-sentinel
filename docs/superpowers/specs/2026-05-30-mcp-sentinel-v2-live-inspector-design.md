@@ -121,6 +121,7 @@ export interface McpConfigServerEntry {
 }
 
 export interface McpInspectionSurface {
+  serverName: string;                  // configEntry.name, or derived from command/url
   serverInfo?: McpServerInfo;          // optional: --no-execute has no server info
   serverInstructions?: string;         // MCP server initialization instructions
   configEntry?: McpConfigServerEntry;  // present for config-based inspection
@@ -179,7 +180,7 @@ export interface StaticFinding {
   ruleId: string;
   ruleName: string;
   category: StaticRuleCategory;
-  severity: Severity;                  // highest of rule default and match overrides
+  severity: Severity;                  // highest effectiveMatchSeverity across matches (see severity calculation)
   owaspRefs: string[];
   slowmistRef: string;
   serverName: string;
@@ -274,7 +275,21 @@ export type SentinelResult = InspectResult | AttackResult;
 
 ### Severity-sensitive rules
 
-Rules marked "severity-sensitive" use match-level `severityOverride` to produce findings at the appropriate severity. The `StaticFinding.severity` is the highest of the rule default and all match overrides.
+Rules marked "severity-sensitive" use match-level `severityOverride` to produce findings at the appropriate severity.
+
+**Severity calculation:**
+
+For each match:
+```
+effectiveMatchSeverity = match.severityOverride ?? rule.severity
+```
+
+Then:
+```
+StaticFinding.severity = highest effectiveMatchSeverity across all matches
+```
+
+Do not compare every match against the rule default if `severityOverride` is present. The override replaces the default for that match, it does not compete with it.
 
 ### Severity tiers per rule
 
@@ -477,6 +492,8 @@ export interface ConnectFailure {
   success: false;
   serverName: string;
   error: string;
+  sourcePath?: string;                 // config file path if from config
+  rawPath?: string;                    // e.g. "mcpServers.github" if from config
 }
 
 export type ConnectionOutcome = ConnectResult | ConnectFailure;
@@ -659,6 +676,10 @@ Output:
 - `--yes` without `--all` or `--server` → error
 - `--server <name>` not found in config → error, no fallback
 - `--read-resources` with `--no-execute` → error
+- `--arg` without `--command` → error
+- `--command` and `--config` together → error (mutually exclusive)
+- `--command` without a binary value → error
+- `--config` without a path value → error
 
 ### `index.ts` routing (pseudocode)
 
@@ -671,7 +692,11 @@ switch (command) {
     if (opts.help) { printInspectUsage(); process.exit(0); }
     const { runInspect } = await import('./inspect.js');
     const result = await runInspect(opts);
-    printReport(result);
+    if (opts.json) {
+      console.log(JSON.stringify(toRedactedJson(result), null, 2));
+    } else {
+      printReport(result);
+    }
     if (opts.output) writeJsonReport(result, opts.output);
     process.exit(applyFailOn(result.findings, opts.failOn));
   }
@@ -685,7 +710,11 @@ switch (command) {
     }
     const { runScan } = await import('./scanner.js');
     const result = await runScan(opts);
-    printReport(result);
+    if (opts.json) {
+      console.log(JSON.stringify(toRedactedJson(result), null, 2));
+    } else {
+      printReport(result);
+    }
     if (opts.output) writeJsonReport(result, opts.output);
     process.exit(applyFailOn(result.findings, opts.failOn));
   }
@@ -696,6 +725,11 @@ switch (command) {
 ```
 
 `parseInspectArgs()` and `parseAttackArgs()` live in `index.ts`. Only `runInspect` is imported from `inspect.ts`. Only `runScan` is imported from `scanner.ts`.
+
+**Attack CLI-to-internal mapping:**
+- `--agent-model` → `agentModel`
+- `--judge-model` → `judgeModel`
+- `--no-baseline` → `baselineEnabled: false`
 
 ---
 
@@ -708,15 +742,22 @@ export async function runInspect(opts: InspectOptions): Promise<InspectResult>
 ```
 
 **--command mode:**
-1. Build `McpConfigServerEntry` from `--command` + `--arg` flags
+1. Build a synthetic `McpConfigServerEntry` from `--command` + `--arg` flags:
+   - `name`: command basename (e.g., `"node"`) or `"command"`
+   - `transport`: `"stdio"`
+   - `command`: the binary
+   - `args`: the `--arg` values
+   - `envKeys`: `[]`
+   - `sourcePath`: `"cli"`
+   - `rawPath`: `"cli.command"`
 2. Call `mcpClient.inspectServer(entry)` → `McpInspectionSurface`
 3. Call `runStaticRules(surface)` → `StaticFinding[]`
 4. Aggregate `InspectResult`
 
-**--config mode:**
+**--config mode (hard ordering: parse → rules → gate → connect):**
 1. `configParser.parseConfigFile(path)` → `McpConfigServerEntry[]`
-2. For each entry: `runStaticRules({ configEntry, tools:[], resources:[], prompts:[], warnings:[] })` → config-level `StaticFinding[]`
-3. `configGate.runConfigGate(entries, configFindings, flags)` → `GateDecision`
+2. For each entry: `runStaticRules({ serverName: entry.name, configEntry, tools:[], resources:[], prompts:[], warnings:[] })` → config-level `StaticFinding[]`. **This always runs before the gate.**
+3. `configGate.runConfigGate(entries, configFindings, flags)` → `GateDecision`. configGate displays findings from step 2 but never runs its own independent risk checks.
 4. If `--no-execute`: return `InspectResult` with config findings only
 5. For each approved server:
    - `mcpClient.inspectServer(entry)` → `ConnectionOutcome`
@@ -779,9 +820,22 @@ Warnings:
 
 **Attack output:** Existing format, uses `DynamicFinding` fields.
 
+### `toRedactedJson(result: SentinelResult): SentinelResult`
+
+Returns a deep copy of the result with all evidence, detail, agentResponse, and warning text passed through `redactSensitiveText()`. Used by both `writeJsonReport` and `--json` stdout output. `index.ts` calls this for `--json` mode:
+
+```typescript
+if (opts.json) {
+  console.log(JSON.stringify(toRedactedJson(result), null, 2));
+} else {
+  printReport(result);
+}
+if (opts.output) writeJsonReport(result, opts.output);
+```
+
 ### `writeJsonReport(result: SentinelResult, path: string): void`
 
-Preserves discriminated union structure. Does not flatten findings:
+Calls `toRedactedJson()` internally, then serializes. Preserves discriminated union structure. Does not flatten findings:
 
 ```json
 {
@@ -908,5 +962,7 @@ Warnings are displayed in a separate section. They are not findings unless a sta
 10. All static rules are severity-sensitive where specified.
 11. Cross-server collision detection works for `--config` with multiple servers.
 12. Reporter redacts secrets in evidence before printing or serializing.
-13. `--json` produces parseable JSON on stdout with no ANSI codes.
+13. `--json` produces parseable JSON on stdout with no ANSI codes. Stdout JSON is redacted via `toRedactedJson()`.
 14. Per-server connection failure is a warning, not total scan failure.
+15. `--json` stdout, `--output` file, and terminal report are all redacted. All three output paths use `redactSensitiveText()`.
+16. Attack mode remains the existing dynamic harness and does not yet perform live `tools/call` exploitation against inspected MCP servers. `DynamicFinding.testSurface` reflects the simulated injection surface, not a live MCP surface.
