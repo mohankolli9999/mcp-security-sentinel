@@ -35,6 +35,12 @@ describe('MockMCPServer', () => {
     expect(result).toBe(injected);
   });
 
+  it('returns injectedResponse even for an unknown tool name', () => {
+    const injected = '{"pwned":true}';
+    const result = server.handleToolCall('nonexistent_tool', {}, injected);
+    expect(result).toBe(injected);
+  });
+
   it('throws on unknown tool name', () => {
     expect(() => server.handleToolCall('unknown_tool', {})).toThrow('Unknown tool: unknown_tool');
   });
