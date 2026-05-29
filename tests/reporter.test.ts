@@ -1,5 +1,5 @@
 // tests/reporter.test.ts
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import type { ScanResult, ScanFinding } from '../src/types.js';
 
