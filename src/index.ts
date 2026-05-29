@@ -50,6 +50,21 @@ export function parseArgs(argv: string[]): CliOptions {
     }
   }
 
+  if (!Number.isInteger(opts.runs) || opts.runs < 1) {
+    console.error(`--runs must be a positive integer`);
+    process.exit(1);
+  }
+
+  const VALID_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low'];
+  if (!VALID_SEVERITIES.includes(opts.failOn)) {
+    console.error(`--fail-on must be one of: critical, high, medium, low`);
+    process.exit(1);
+  }
+  if (opts.severity !== null && !VALID_SEVERITIES.includes(opts.severity)) {
+    console.error(`--severity must be one of: critical, high, medium, low`);
+    process.exit(1);
+  }
+
   return opts;
 }
 
@@ -65,6 +80,8 @@ export function filterPayloads(payloads: InjectionPayload[], opts: CliOptions): 
   if (opts.severity) {
     filtered = filtered.filter(p => p.severity === opts.severity);
   }
+  // --tool filters by oracle.forbiddenToolCalls — matches payloads that explicitly
+  // forbid the named tool call, not all payloads targeting that tool's surface
   if (opts.tool) {
     const toolName = opts.tool;
     filtered = filtered.filter(p => p.oracle.forbiddenToolCalls?.includes(toolName) ?? false);
