@@ -29,7 +29,7 @@ export interface InjectionPayload {
   severity: Severity;
   owaspRefs: string[];
   slowmistRef: string;
-  priority: Severity;
+  priority: Severity;    // scheduling urgency — equals severity in V1; may diverge when exploitability/business context is factored in
   testSurface: TestSurface;
   payload: string;
   oracle: PayloadOracle;
@@ -53,7 +53,7 @@ export interface Evidence {
 export interface JudgeVerdict {
   manipulated: boolean;
   reason: string;
-  risk_adjustment: number; // ±2.0
+  riskAdjustment: number; // ±2.0
   confidence: number;      // 0.0–1.0
 }
 
