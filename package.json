@@ -1,0 +1,24 @@
+{
+  "name": "mcp-security-sentinel",
+  "version": "1.0.0",
+  "description": "CLI red-team harness for evaluating AI agent response to malicious MCP tool content",
+  "type": "module",
+  "scripts": {
+    "scan": "tsx src/index.ts",
+    "quick-scan": "tsx src/index.ts --quick",
+    "demo": "tsx src/index.ts --severity critical --no-baseline",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "chalk": "^5.4.1",
+    "ora": "^8.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}
