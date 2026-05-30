@@ -1,92 +1,151 @@
 import { describe, it, expect } from 'vitest';
-import { parseArgs, filterPayloads } from '../src/index.js';
-import { PAYLOADS } from '../src/payloads.js';
+import { parseInspectArgs, parseAttackArgs } from '../src/index.js';
 
-describe('parseArgs', () => {
-  it('returns defaults with no args', () => {
-    const opts = parseArgs([]);
-    expect(opts.quick).toBe(false);
-    expect(opts.runs).toBe(1);
-    expect(opts.failOn).toBe('low');
-    expect(opts.noBaseline).toBe(false);
-    expect(opts.payloadId).toBeNull();
-    expect(opts.tool).toBeNull();
+describe('parseInspectArgs', () => {
+  it('parses --command with --arg', () => {
+    const opts = parseInspectArgs(['--command', 'node', '--arg', 'server.js', '--arg', '--port=3000']);
+    expect(opts.mode).toBe('command');
+    expect(opts.command).toBe('node');
+    expect(opts.args).toEqual(['server.js', '--port=3000']);
   });
 
-  it('parses --quick flag', () => {
-    const opts = parseArgs(['--quick']);
-    expect(opts.quick).toBe(true);
+  it('parses --config', () => {
+    const opts = parseInspectArgs(['--config', '/path/to/config.json']);
+    expect(opts.mode).toBe('config');
+    expect(opts.configPath).toBe('/path/to/config.json');
   });
 
-  it('parses --runs value', () => {
-    const opts = parseArgs(['--runs', '3']);
-    expect(opts.runs).toBe(3);
+  it('parses --server and --yes', () => {
+    const opts = parseInspectArgs(['--config', 'c.json', '--server', 'github', '--yes']);
+    expect(opts.server).toBe('github');
+    expect(opts.yes).toBe(true);
   });
 
-  it('parses --no-baseline flag', () => {
-    const opts = parseArgs(['--no-baseline']);
-    expect(opts.noBaseline).toBe(true);
+  it('parses --all and --no-execute', () => {
+    const opts = parseInspectArgs(['--config', 'c.json', '--all', '--no-execute']);
+    expect(opts.all).toBe(true);
+    expect(opts.noExecute).toBe(true);
   });
 
-  it('parses --payload id', () => {
-    const opts = parseArgs(['--payload', 'INJ-004']);
-    expect(opts.payloadId).toBe('INJ-004');
+  it('parses --read-resources with limits', () => {
+    const opts = parseInspectArgs(['--command', 'node', '--read-resources', '--max-resources', '5']);
+    expect(opts.readResources).toBe(true);
+    expect(opts.maxResources).toBe(5);
   });
 
-  it('parses --severity', () => {
-    const opts = parseArgs(['--severity', 'critical']);
-    expect(opts.severity).toBe('critical');
+  it('parses timeout flags', () => {
+    const opts = parseInspectArgs(['--command', 'node', '--timeout-ms', '5000', '--max-pages', '10']);
+    expect(opts.timeoutMs).toBe(5000);
+    expect(opts.maxPages).toBe(10);
   });
 
-  it('parses --fail-on', () => {
-    const opts = parseArgs(['--fail-on', 'high']);
-    expect(opts.failOn).toBe('high');
+  it('parses --json and --output', () => {
+    const opts = parseInspectArgs(['--command', 'node', '--json', '--output', '/tmp/r.json']);
+    expect(opts.json).toBe(true);
+    expect(opts.output).toBe('/tmp/r.json');
   });
 
-  it('parses --model and --judge-model', () => {
-    const opts = parseArgs(['--model', 'claude-haiku-4-5-20251001', '--judge-model', 'claude-sonnet-4-6']);
-    expect(opts.model).toBe('claude-haiku-4-5-20251001');
-    expect(opts.judgeModel).toBe('claude-sonnet-4-6');
+  it('parses --severity and --fail-on', () => {
+    const opts = parseInspectArgs(['--command', 'node', '--severity', 'high', '--fail-on', 'critical']);
+    expect(opts.severity).toBe('high');
+    expect(opts.failOn).toBe('critical');
   });
 
-  it('parses --output path', () => {
-    const opts = parseArgs(['--output', '/tmp/report.json']);
-    expect(opts.output).toBe('/tmp/report.json');
+  it('sets help flag', () => {
+    const opts = parseInspectArgs(['--help']);
+    expect(opts.help).toBe(true);
   });
 });
 
-describe('filterPayloads', () => {
-  it('returns all payloads with default options', () => {
-    const opts = parseArgs([]);
-    expect(filterPayloads(PAYLOADS, opts)).toHaveLength(PAYLOADS.length);
+describe('parseAttackArgs', () => {
+  it('parses attack-specific flags', () => {
+    const opts = parseAttackArgs([
+      '--payload', 'INJ-001', '--runs', '3',
+      '--agent-model', 'claude-haiku-4-5-20251001',
+      '--judge-model', 'claude-sonnet-4-6',
+    ]);
+    expect(opts.payloadId).toBe('INJ-001');
+    expect(opts.runs).toBe(3);
+    expect(opts.agentModel).toBe('claude-haiku-4-5-20251001');
+    expect(opts.judgeModel).toBe('claude-sonnet-4-6');
   });
 
-  it('--quick returns only critical and high payloads', () => {
-    const opts = parseArgs(['--quick']);
-    const filtered = filterPayloads(PAYLOADS, opts);
-    expect(filtered.every(p => p.severity === 'critical' || p.severity === 'high')).toBe(true);
-    expect(filtered.length).toBeGreaterThan(0);
+  it('parses --no-baseline', () => {
+    const opts = parseAttackArgs(['--no-baseline']);
+    expect(opts.noBaseline).toBe(true);
   });
 
-  it('--severity critical returns only critical payloads', () => {
-    const opts = parseArgs(['--severity', 'critical']);
-    const filtered = filterPayloads(PAYLOADS, opts);
-    expect(filtered.every(p => p.severity === 'critical')).toBe(true);
+  it('parses --json', () => {
+    const opts = parseAttackArgs(['--json']);
+    expect(opts.json).toBe(true);
   });
 
-  it('--payload INJ-004 returns exactly one payload', () => {
-    const opts = parseArgs(['--payload', 'INJ-004']);
-    const filtered = filterPayloads(PAYLOADS, opts);
-    expect(filtered).toHaveLength(1);
-    expect(filtered[0].id).toBe('INJ-004');
+  it('has correct defaults', () => {
+    const opts = parseAttackArgs([]);
+    expect(opts.runs).toBe(3);
+    expect(opts.failOn).toBe('high');
+    expect(opts.noBaseline).toBe(false);
   });
 
-  it('--tool send_report returns payloads that forbid send_report calls', () => {
-    const opts = parseArgs(['--tool', 'send_report']);
-    const filtered = filterPayloads(PAYLOADS, opts);
-    expect(filtered.length).toBeGreaterThan(0);
-    expect(
-      filtered.every(p => p.oracle.forbiddenToolCalls?.includes('send_report'))
-    ).toBe(true);
+  it('sets help flag', () => {
+    const opts = parseAttackArgs(['--help']);
+    expect(opts.help).toBe(true);
+  });
+
+  it('filters severity at or above threshold', () => {
+    const opts = parseAttackArgs(['--severity', 'high']);
+    expect(opts.severity).toBe('high');
+  });
+});
+
+describe('parseInspectArgs validation', () => {
+  it('rejects unknown flags', () => {
+    expect(() => parseInspectArgs(['--command', 'node', '--bogus'])).toThrow(/unknown flag/i);
+  });
+
+  it('rejects --command and --config together', () => {
+    expect(() => parseInspectArgs(['--command', 'node', '--config', 'c.json'])).toThrow(/mutually exclusive/i);
+  });
+
+  it('rejects inspect with no --command or --config', () => {
+    expect(() => parseInspectArgs(['--json'])).toThrow(/requires --command or --config/i);
+  });
+
+  it('rejects --arg without --command', () => {
+    expect(() => parseInspectArgs(['--config', 'c.json', '--arg', 'foo'])).toThrow(/--arg requires --command/i);
+  });
+
+  it('rejects --server without --config', () => {
+    expect(() => parseInspectArgs(['--command', 'node', '--server', 'x'])).toThrow(/require --config/i);
+  });
+
+  it('rejects --yes without --all or --server', () => {
+    expect(() => parseInspectArgs(['--config', 'c.json', '--yes'])).toThrow(/--yes requires/i);
+  });
+
+  it('rejects --read-resources with --no-execute', () => {
+    expect(() => parseInspectArgs(['--config', 'c.json', '--read-resources', '--no-execute'])).toThrow(/cannot be used/i);
+  });
+
+  it('rejects invalid --severity value', () => {
+    expect(() => parseInspectArgs(['--command', 'node', '--severity', 'extreme'])).toThrow(/must be one of/i);
+  });
+
+  it('rejects non-positive --max-pages', () => {
+    expect(() => parseInspectArgs(['--command', 'node', '--max-pages', '0'])).toThrow(/positive integer/i);
+  });
+
+  it('rejects flag with missing value', () => {
+    expect(() => parseInspectArgs(['--command'])).toThrow(/requires a value/i);
+  });
+});
+
+describe('parseAttackArgs validation', () => {
+  it('rejects unknown flags', () => {
+    expect(() => parseAttackArgs(['--bogus'])).toThrow(/unknown flag/i);
+  });
+
+  it('rejects invalid --fail-on value', () => {
+    expect(() => parseAttackArgs(['--fail-on', 'extreme'])).toThrow(/must be one of/i);
   });
 });

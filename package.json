@@ -4,9 +4,9 @@
   "description": "CLI red-team harness for evaluating AI agent response to malicious MCP tool content",
   "type": "module",
   "scripts": {
-    "scan": "tsx src/index.ts",
-    "quick-scan": "tsx src/index.ts --quick",
-    "demo": "tsx src/index.ts --severity critical --no-baseline",
+    "inspect": "tsx src/index.ts inspect",
+    "attack": "tsx src/index.ts attack",
+    "scan": "tsx src/index.ts attack",
     "test": "vitest run",
     "test:watch": "vitest"
   },
