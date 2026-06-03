@@ -724,10 +724,23 @@ const RISK_SCORE_MAP: Record<Severity, number> = {
   low: 2,
 };
 
-export function runStaticRules(surface: McpInspectionSurface): StaticFinding[] {
+// Rules that only require configEntry (safe to run without a live server connection)
+const CONFIG_ONLY_RULE_IDS = new Set(['STATIC-008', 'STATIC-009']);
+
+export interface RunStaticRulesOptions {
+  /** When true, only run rules that inspect config entries (no live server needed). */
+  configOnly?: boolean;
+}
+
+export function runStaticRules(
+  surface: McpInspectionSurface,
+  options?: RunStaticRulesOptions,
+): StaticFinding[] {
   const findings: StaticFinding[] = [];
+  const configOnly = options?.configOnly ?? false;
 
   for (const rule of STATIC_RULES) {
+    if (configOnly && !CONFIG_ONLY_RULE_IDS.has(rule.id)) continue;
     const matches = rule.check(surface);
     if (matches.length === 0) continue;
 

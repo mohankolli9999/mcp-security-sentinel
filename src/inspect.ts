@@ -135,7 +135,7 @@ async function inspectConfig(opts: InspectOptions): Promise<InspectResult> {
       prompts: [],
       warnings: [],
     };
-    configFindings.push(...runStaticRules(configSurface));
+    configFindings.push(...runStaticRules(configSurface, { configOnly: true }));
   }
 
   const gateDecision = await runConfigGate(entries, configFindings, {
