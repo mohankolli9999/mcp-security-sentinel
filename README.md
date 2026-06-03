@@ -13,7 +13,7 @@ A security analysis CLI for the [Model Context Protocol](https://modelcontextpro
 
 ```bash
 git clone https://github.com/mohankolli9999/mcp-security-sentinel.git
-cd mcpsentinel
+cd mcp-security-sentinel
 npm install
 ```
 
