@@ -1,9 +1,36 @@
 {
   "name": "mcp-security-sentinel",
   "version": "1.0.0",
-  "description": "CLI red-team harness for evaluating AI agent response to malicious MCP tool content",
+  "description": "Security scanner for the Model Context Protocol — static config analysis and prompt-injection red-teaming for MCP servers",
   "type": "module",
+  "license": "MIT",
+  "bin": {
+    "mcp-security-sentinel": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mohankolli9999/mcp-security-sentinel.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "security",
+    "prompt-injection",
+    "red-team",
+    "llm-security",
+    "sarif"
+  ],
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm test && npm run build",
     "inspect": "tsx src/index.ts inspect",
     "attack": "tsx src/index.ts attack",
     "scan": "tsx src/index.ts attack",

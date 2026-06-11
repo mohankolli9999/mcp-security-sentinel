@@ -32,6 +32,7 @@ export interface InspectOptions {
   severity?: Severity;
   failOn?: Severity;
   output?: string;
+  sarif?: string;
   json?: boolean;
 }
 

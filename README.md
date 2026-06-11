@@ -11,11 +11,22 @@ A security analysis CLI for the [Model Context Protocol](https://modelcontextpro
 
 ## Installation
 
+From source:
+
 ```bash
 git clone https://github.com/mohankolli9999/mcp-security-sentinel.git
 cd mcp-security-sentinel
 npm install
 ```
+
+As a package (once published to npm):
+
+```bash
+npm install -g mcp-security-sentinel
+mcp-security-sentinel inspect --config ~/.claude/claude_desktop_config.json --no-execute
+```
+
+To build the standalone CLI locally: `npm run build`, then `node dist/index.js <command>`.
 
 ## Quick Start
 
@@ -210,6 +221,7 @@ Output:
   --severity <level>              Filter: critical | high | medium | low
   --fail-on <level>               Exit 1 if findings >= level (default: high)
   --output <path>                 Write JSON report to file
+  --sarif <path>                  Write SARIF 2.1.0 report to file
   --json                          JSON to stdout instead of formatted output
 ```
 
@@ -327,6 +339,7 @@ Execution:
 Output:
   --fail-on <level>               Exit 1 if findings >= level (default: high)
   --output <path>                 Write JSON report to file
+  --sarif <path>                  Write SARIF 2.1.0 report to file
   --json                          JSON to stdout
 ```
 
@@ -412,6 +425,21 @@ npx tsx src/index.ts attack \
 ```
 
 Exit codes: `0` = no findings at or above `--fail-on` level, `1` = findings detected.
+
+### SARIF / GitHub code scanning
+
+`--sarif <path>` writes a [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html) report that GitHub code scanning and other SARIF consumers understand. Severity maps to SARIF levels as critical/high → `error`, medium → `warning`, low → `note`.
+
+```yaml
+# .github/workflows/mcp-scan.yml
+- run: |
+    npx tsx src/index.ts inspect \
+      --config .mcp.json --all --yes \
+      --fail-on high --sarif mcp-findings.sarif || true
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: mcp-findings.sarif
+```
 
 ---
 

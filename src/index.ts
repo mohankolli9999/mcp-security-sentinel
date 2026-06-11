@@ -1,5 +1,8 @@
+#!/usr/bin/env node
 // src/index.ts
 import 'dotenv/config';
+import { realpathSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import type { Severity, SentinelResult } from './types.js';
 import { printReport, writeJsonReport, toRedactedJson } from './reporter.js';
 import type { InspectOptions } from './inspect.js';
@@ -13,24 +16,24 @@ const KNOWN_INSPECT_FLAGS = new Set([
   '--command', '--arg', '--config', '--server', '--all', '--yes', '--no-execute',
   '--read-resources', '--max-resources', '--max-resource-bytes',
   '--timeout-ms', '--enumeration-timeout-ms', '--resource-timeout-ms', '--max-pages',
-  '--severity', '--fail-on', '--output', '--json', '--help', '-h',
+  '--severity', '--fail-on', '--output', '--sarif', '--json', '--help', '-h',
 ]);
 
 const KNOWN_ATTACK_FLAGS = new Set([
   '--payload', '--category', '--severity', '--tool', '--runs',
   '--agent-model', '--judge-model', '--no-baseline',
-  '--fail-on', '--output', '--json', '--help', '-h',
+  '--fail-on', '--output', '--sarif', '--json', '--help', '-h',
 ]);
 
 const VALUE_FLAGS_INSPECT = new Set([
   '--command', '--arg', '--config', '--server', '--max-resources', '--max-resource-bytes',
   '--timeout-ms', '--enumeration-timeout-ms', '--resource-timeout-ms', '--max-pages',
-  '--severity', '--fail-on', '--output',
+  '--severity', '--fail-on', '--output', '--sarif',
 ]);
 
 const VALUE_FLAGS_ATTACK = new Set([
   '--payload', '--category', '--severity', '--tool', '--runs',
-  '--agent-model', '--judge-model', '--fail-on', '--output',
+  '--agent-model', '--judge-model', '--fail-on', '--output', '--sarif',
 ]);
 
 const NUMERIC_FLAGS = new Set([
@@ -105,6 +108,7 @@ export function parseInspectArgs(argv: string[]): InspectOptions & { help?: bool
       case '--severity':      opts.severity = validateSeverityValue(argv[++i], '--severity'); break;
       case '--fail-on':       opts.failOn = validateSeverityValue(argv[++i], '--fail-on'); break;
       case '--output':        opts.output = argv[++i]; break;
+      case '--sarif':         opts.sarif = argv[++i]; break;
       case '--json':          opts.json = true; break;
     }
   }
@@ -156,6 +160,7 @@ export interface AttackOptions {
   noBaseline: boolean;
   failOn: Severity;
   output?: string;
+  sarif?: string;
   json?: boolean;
   help?: boolean;
 }
@@ -188,6 +193,7 @@ export function parseAttackArgs(argv: string[]): AttackOptions {
       case '--no-baseline':   opts.noBaseline = true; break;
       case '--fail-on':       opts.failOn = validateSeverityValue(argv[++i], '--fail-on'); break;
       case '--output':        opts.output = argv[++i]; break;
+      case '--sarif':         opts.sarif = argv[++i]; break;
       case '--json':          opts.json = true; break;
     }
   }
@@ -269,6 +275,7 @@ Output:
   --severity <level>         Report filter (critical|high|medium|low)
   --fail-on <level>          Exit non-zero threshold (default: high)
   --output <path>            Write JSON report to file
+  --sarif <path>             Write SARIF 2.1.0 report to file
   --json                     Print JSON to stdout`);
 }
 
@@ -290,6 +297,7 @@ Execution:
 Output:
   --fail-on <level>          Exit non-zero threshold (default: high)
   --output <path>            Write JSON report to file
+  --sarif <path>             Write SARIF 2.1.0 report to file
   --json                     Print JSON to stdout`);
 }
 
@@ -325,6 +333,10 @@ async function main(): Promise<void> {
         printReport(filteredResult);
       }
       if (opts.output) writeJsonReport(filteredResult, opts.output);
+      if (opts.sarif) {
+        const { writeSarifReport } = await import('./sarif.js');
+        writeSarifReport(filteredResult, opts.sarif);
+      }
       process.exit(applyFailOn(filteredFindings, opts.failOn!));
       break;
     }
@@ -399,6 +411,10 @@ async function main(): Promise<void> {
         printReport(attackResult);
       }
       if (opts.output) writeJsonReport(attackResult, opts.output);
+      if (opts.sarif) {
+        const { writeSarifReport } = await import('./sarif.js');
+        writeSarifReport(attackResult, opts.sarif);
+      }
 
       process.exit(applyFailOn(attackResult.findings, opts.failOn));
       break;
@@ -416,8 +432,18 @@ async function main(): Promise<void> {
   }
 }
 
-// Only run main when executed directly
-if (process.argv[1]?.endsWith('index.ts') || process.argv[1]?.endsWith('index.js')) {
+// Only run main when executed directly. Resolve symlinks so the npm bin
+// shim (a symlink to dist/index.js) is recognized as direct execution.
+function isDirectInvocation(): boolean {
+  if (!process.argv[1]) return false;
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href;
+  } catch {
+    return process.argv[1].endsWith('index.ts') || process.argv[1].endsWith('index.js');
+  }
+}
+
+if (isDirectInvocation()) {
   main().catch(err => {
     console.error(err);
     process.exit(1);
