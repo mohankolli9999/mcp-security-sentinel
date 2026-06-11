@@ -71,6 +71,26 @@ npm run scan          # alias for attack
 
 ---
 
+## Web UI
+
+A local web interface covering both modes, with live streaming results.
+
+```bash
+npm run ui            # dev mode: backend on :3457 + Vite dev server on :5173
+npm run ui:serve      # production: build frontend, serve everything on :3457
+```
+
+Features:
+
+- **Dashboard** — mode overview with API key status
+- **Inspect** — guided four-step flow: parse config → approve servers → live scan stream → filterable findings
+- **Attack** — payload/category/severity filters, model selection, streaming results with evidence and reproduction commands
+- **Reports** — load any JSON report, browse reports saved from the UI, export JSON or Markdown
+
+The UI server is local-only by design: it binds `127.0.0.1`, rejects requests with non-loopback `Host` headers (DNS-rebinding protection), never returns env var values or the API key to the browser, redacts secrets in all findings, and confines report exports to the project's `reports/` directory.
+
+---
+
 ## Inspect Mode — Static Security Analysis
 
 Inspect mode analyzes MCP servers **without an API key**. It connects to real MCP servers (or just reads config files), enumerates their tools, resources, and prompts, then runs 11 static security rules against everything it finds.
